@@ -5,11 +5,15 @@ import ReportPage from './components/ReportPage';
 
 const keycloakConfig: KeycloakConfig = {
   url: process.env.REACT_APP_KEYCLOAK_URL,
-  realm: process.env.REACT_APP_KEYCLOAK_REALM||"",
-  clientId: process.env.REACT_APP_KEYCLOAK_CLIENT_ID||""
+  realm: process.env.REACT_APP_KEYCLOAK_REALM || "",
+  clientId: process.env.REACT_APP_KEYCLOAK_CLIENT_ID || ""
 };
 
 const keycloak = new Keycloak(keycloakConfig);
+
+keycloak.init({
+  pkceMethod: 'S256'
+});
 
 const App: React.FC = () => {
   return (
