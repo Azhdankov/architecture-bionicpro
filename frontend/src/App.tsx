@@ -11,13 +11,15 @@ const keycloakConfig: KeycloakConfig = {
 
 const keycloak = new Keycloak(keycloakConfig);
 
-keycloak.init({
-  pkceMethod: 'S256'
-});
-
 const App: React.FC = () => {
   return (
-    <ReactKeycloakProvider authClient={keycloak}>
+    <ReactKeycloakProvider 
+      authClient={keycloak}
+      initOptions={{
+        pkceMethod: 'S256',
+        checkLoginIframe: false
+      }}
+    >
       <div className="App">
         <ReportPage />
       </div>
