@@ -1,0 +1,41 @@
+@startuml
+title Детализированная схема OAuth 2.0 с PKCE (Keycloak)
+
+actor User as "Пользователь"
+participant "SPA (Frontend)" as Frontend
+participant "Keycloak" as Keycloak
+participant "Backend API" as Backend
+
+== Инициализация PKCE ==
+Frontend -> Frontend: Генерирует:\n- code_verifier (рандомная строка)\n- code_challenge = SHA256(code_verifier)\n- state (CSRF-токен)
+
+== Шаг 1: Запрос авторизации ==
+Frontend -> Keycloak: GET /auth?response_type=code\n&client_id=reports-frontend\n&redirect_uri=http://localhost:3000/callback\n&code_challenge=abc123\n&code_challenge_method=S256\n&state=xyz987
+Keycloak -> Keycloak: Сохраняет code_challenge\nи state в сессии
+
+== Шаг 2: Аутентификация ==
+Keycloak -> User: Форма ввода логина/пароля
+User -> Keycloak: Отправляет credentials
+Keycloak -> Keycloak: Проверяет пароль и роли (user/admin/prothetic_user)
+
+== Шаг 3: Перенаправление с кодом ==
+Keycloak -> Frontend: 302 Redirect на:\nhttp://localhost:3000/callback?code=CODE_123\n&state=xyz987
+Frontend -> Frontend: Проверяет state (CSRF-защита)
+
+== Шаг 4: Обмен кода на токены ==
+Frontend -> Keycloak: POST /token\ngrant_type=authorization_code\n&code=CODE_123\n&redirect_uri=...\n&client_id=reports-frontend\n&code_verifier=original_verifier
+Keycloak -> Keycloak: 1. Ищет сессию по code=CODE_123\n2. Вычисляет SHA256(code_verifier)\n3. Сравнивает с code_challenge=abc123\n4. Если совпадает – выдает токены
+Keycloak -> Frontend: { "access_token": "JWT", "refresh_token": "...", "id_token": "..." }
+
+== Шаг 5: Доступ к API ==
+Frontend -> Backend: GET /api/reports\nAuthorization: Bearer JWT
+Backend -> Keycloak: Запрашивает JWKS (публичные ключи)
+Keycloak -> Backend: Отправляет ключи
+Backend -> Backend: 1. Проверяет подпись JWT\n2. Проверяет claims (iss, aud, exp)\n3. Проверяет роль в токене (напр., "prothetic_user")
+Backend -> Frontend: 200 OK (если роль есть) или 403 Forbidden
+
+== Шаг 6: Обновление токена ==
+Frontend -> Keycloak: POST /token\ngrant_type=refresh_token\n&refresh_token=...\n&client_id=reports-frontend
+Keycloak -> Frontend: Новый access_token
+
+@enduml
